@@ -3,9 +3,10 @@
 <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
-         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
 
     <changeSet id="create-appointment_speciality_table-201707031130" author="Shruthi,Pushpa">
+        <validCheckSum>any</validCheckSum>
         <preConditions onFail="MARK_RAN">
             <not>
                 <tableExists tableName="appointment_speciality" />
@@ -17,7 +18,7 @@
                 <constraints primaryKey="true" nullable="false" />
             </column>
             <column name="name" type="varchar(50)">
-                <constraints nullable="false" unique="true" uniqueConstraintName="name_UNIQUE" />
+                <constraints nullable="false" unique="true" uniqueConstraintName="appointment_speciality_name_UNIQUE" />
             </column>
             <column name="date_created" type="datetime">
                 <constraints nullable="false" />
@@ -35,6 +36,7 @@
     </changeSet>
 
     <changeSet id="create-appointment_service_table-201707031130" author="Shruthi,Pushpa">
+        <validCheckSum>any</validCheckSum>
         <preConditions onFail="MARK_RAN">
             <not>
                 <tableExists tableName="appointment_service" />
@@ -46,7 +48,7 @@
                 <constraints primaryKey="true" nullable="false" />
             </column>
             <column name="name" type="varchar(50)">
-                <constraints nullable="false" unique="true" uniqueConstraintName="name_UNIQUE" />
+                <constraints nullable="false" unique="true" uniqueConstraintName="appointment_service_name_UNIQUE" />
             </column>
             <column name="description" type="text" />
             <column name="start_time" type="time" />
@@ -79,14 +81,14 @@
             referencedTableName="location" referencedColumnNames="location_id" />
     </changeSet>
 
-    <changeSet id="appointments_-201707031031" author="Shruthi P">
+    <changeSet id="appointments_-201707031031-mysql" author="Shruthi P" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM location_tag where name='Appointment Location';
             </sqlCheck>
         </preConditions>
         <comment>Add Appointment Location Tag if not already added.</comment>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO location_tag (name, description, creator, date_created, uuid) VALUES
             ('Appointment Location',
             'When a user user creates a appointment service and chooses a location, they may only choose one with this tag',
@@ -94,7 +96,15 @@
             CURRENT_TIMESTAMP,
             UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="appointments_-201707031031-postgresql" author="Shruthi P" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM location_tag where name='Appointment Location';
+            </sqlCheck>
+        </preConditions>
+        <comment>Add Appointment Location Tag if not already added.</comment>
+        <sql>
             INSERT INTO location_tag (name, description, creator, date_created, uuid) VALUES
             ('Appointment Location',
             'When a user user creates a appointment service and chooses a location, they may only choose one with this tag',
@@ -271,35 +281,42 @@
     </changeSet>
 
     <changeSet id="drop_index_on_appointment_service_table-201707251710" author="Santhosh, Maharjun">
+        <validCheckSum>any</validCheckSum>
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="appointment_service"/>
-            <indexExists indexName="name_UNIQUE"/>
         </preConditions>
-        <dropIndex tableName="appointment_service" indexName="name_UNIQUE"/>
+        <dropUniqueConstraint tableName="appointment_service" constraintName="appointment_service_name_UNIQUE"/>
     </changeSet>
 
-    <changeSet id="add_color_column_to_appointment_service_table-201707251432" author="Santhosh, Maharjun">
+    <changeSet id="add_color_column_to_appointment_service_table-201707251432-mysql" author="Santhosh, Maharjun" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <not>
                 <columnExists columnName="color" tableName="appointment_service"/>
             </not>
         </preConditions>
-        <sql dbms="mysql">
+        <sql>
             ALTER TABLE appointment_service
             ADD COLUMN color varchar(8) NULL AFTER duration_mins;
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="add_color_column_to_appointment_service_table-201707251432-postgresql" author="Santhosh, Maharjun" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists columnName="color" tableName="appointment_service"/>
+            </not>
+        </preConditions>
+        <sql>
             ALTER TABLE appointment_service
             ADD COLUMN color varchar(8) NULL;
         </sql>
     </changeSet>
 
     <changeSet id="drop_index_on_appointment_service_type_table-201708031638" author="Santhosh, Pramida">
+        <validCheckSum>any</validCheckSum>
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="appointment_service_type"/>
-            <indexExists indexName="service_name_dur_UNIQUE"/>
         </preConditions>
-        <dropIndex tableName="appointment_service_type" indexName="service_name_dur_UNIQUE"/>
+        <dropUniqueConstraint tableName="appointment_service_type" constraintName="service_name_dur_UNIQUE"/>
     </changeSet>
 
     <changeSet id="create-patient_appointment_audit_table-201708311030" author="Shruthi">
@@ -340,13 +357,13 @@
             referencedTableName="patient_appointment" referencedColumnNames="patient_appointment_id" />
     </changeSet>
 
-    <changeSet id="create-appointment-status-change-task-20170912101533" author="Kaustav">
+    <changeSet id="create-appointment-status-change-task-20170912101533-mysql" author="Kaustav" dbms="mysql">
         <preConditions>
             <sqlCheck expectedResult="0">
-                SELECT COUNT(*) FROM scheduler_task_config WHERE name = "Mark Appointment As Missed Or Complete Task";
+                SELECT COUNT(*) FROM scheduler_task_config WHERE name = 'Mark Appointment As Missed Or Complete Task';
             </sqlCheck>
         </preConditions>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO
             scheduler_task_config(name, description, schedulable_class, start_time, start_time_pattern, repeat_interval,
             start_on_startup, created_by, date_created, uuid)
@@ -361,7 +378,14 @@
             ('Mark Appointment As Complete Task', 'Mark appointments as complete task', 'org.openmrs.module.appointments.scheduler.tasks.MarkAppointmentAsCompleteTask',
             CURRENT_DATE, 'MM/dd/yyyy HH:mm:ss', 86400, TRUE, 1, CURRENT_TIMESTAMP, UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="create-appointment-status-change-task-20170912101533-postgresql" author="Kaustav" dbms="postgresql">
+        <preConditions>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM scheduler_task_config WHERE name = 'Mark Appointment As Missed Or Complete Task';
+            </sqlCheck>
+        </preConditions>
+        <sql>
             INSERT INTO
             scheduler_task_config(name, description, schedulable_class, start_time, start_time_pattern, repeat_interval,
             start_on_startup, created_by, date_created, uuid)
@@ -378,13 +402,13 @@
         </sql>
     </changeSet>
 
-    <changeSet id="create-appointment-status-change-task-201709121099999" author="Bahmni">
+    <changeSet id="create-appointment-status-change-task-201709121099999-mysql" author="Bahmni" dbms="mysql">
         <preConditions>
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM scheduler_task_config WHERE name = "Reminder of scheduled appointment";
             </sqlCheck>
         </preConditions>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO
                 scheduler_task_config(name, description, schedulable_class, start_time, start_time_pattern, repeat_interval,
                                       start_on_startup, created_by, date_created, uuid)
@@ -392,7 +416,14 @@
                 ('Reminder of scheduled appointment', 'Reminder of scheduled appointment', 'org.openmrs.module.appointments.scheduler.tasks.ReminderForAppointment',
                  CURRENT_DATE, 'MM/dd/yyyy HH:mm:ss', 3600, TRUE, 1, CURRENT_TIMESTAMP, UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="create-appointment-status-change-task-201709121099999-postgresql" author="Bahmni" dbms="postgresql">
+        <preConditions>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM scheduler_task_config WHERE name = "Reminder of scheduled appointment";
+            </sqlCheck>
+        </preConditions>
+        <sql>
             INSERT INTO
                 scheduler_task_config(name, description, schedulable_class, start_time, start_time_pattern, repeat_interval,
                                       start_on_startup, created_by, date_created, uuid)
@@ -402,77 +433,107 @@
         </sql>
     </changeSet>
 
-    <changeSet id="Create-privilege-view-appointments-201709201603"  author="Santhosh, Pramida">
+    <changeSet id="Create-privilege-view-appointments-201709201603-mysql"  author="Santhosh, Pramida" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(*) from privilege where privilege='View Appointments'</sqlCheck>
         </preConditions>
         <comment>Adding privilege for viewing Appointments</comment>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO privilege (privilege, description, uuid) VALUES ('View Appointments', 'Able to view Appointments in Appointments module', UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="Create-privilege-view-appointments-201709201603-postgresql"  author="Santhosh, Pramida" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">select count(*) from privilege where privilege='View Appointments'</sqlCheck>
+        </preConditions>
+        <comment>Adding privilege for viewing Appointments</comment>
+        <sql>
             INSERT INTO privilege (privilege, description, uuid) VALUES ('View Appointments', 'Able to view Appointments in Appointments module', gen_random_uuid());
         </sql>
     </changeSet>
 
-    <changeSet id="Create-privilege-manage-appointments-201709201605"  author="Santhosh, Pramida">
+    <changeSet id="Create-privilege-manage-appointments-201709201605-mysql"  author="Santhosh, Pramida" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(*) from privilege where privilege='Manage Appointments'</sqlCheck>
         </preConditions>
         <comment>Adding privilege for managing Appointments</comment>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO privilege (privilege, description, uuid) VALUES ('Manage Appointments', 'Able to manage Appointments in Appointments module', UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="Create-privilege-manage-appointments-201709201605-postgresql"  author="Santhosh, Pramida" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">select count(*) from privilege where privilege='Manage Appointments'</sqlCheck>
+        </preConditions>
+        <comment>Adding privilege for managing Appointments</comment>
+        <sql>
             INSERT INTO privilege (privilege, description, uuid) VALUES ('Manage Appointments', 'Able to manage Appointments in Appointments module', gen_random_uuid());
         </sql>
     </changeSet>
 
-    <changeSet id="Create-privilege-view-appointment-services-201709201606"  author="Santhosh, Pramida">
+    <changeSet id="Create-privilege-view-appointment-services-201709201606-mysql"  author="Santhosh, Pramida" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(*) from privilege where privilege='View Appointment Services'</sqlCheck>
         </preConditions>
         <comment>Adding privilege to view Services in Appointments module</comment>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO privilege (privilege, description, uuid) VALUES ('View Appointment Services', 'Able to view Services in Appointments module', UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="Create-privilege-view-appointment-services-201709201606-postgresql"  author="Santhosh, Pramida" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">select count(*) from privilege where privilege='View Appointment Services'</sqlCheck>
+        </preConditions>
+        <comment>Adding privilege to view Services in Appointments module</comment>
+        <sql>
             INSERT INTO privilege (privilege, description, uuid) VALUES ('View Appointment Services', 'Able to view Services in Appointments module', gen_random_uuid());
         </sql>
     </changeSet>
 
-    <changeSet id="Create-privilege-manage-appointment-services-201709201607"  author="Santhosh, Pramida">
+    <changeSet id="Create-privilege-manage-appointment-services-201709201607-mysql"  author="Santhosh, Pramida" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(*) from privilege where privilege='Manage Appointment Services'</sqlCheck>
         </preConditions>
         <comment>Adding privilege to manage Services in Appointments module</comment>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO privilege (privilege, description, uuid) VALUES ('Manage Appointment Services', 'Able to manage Services in Appointments module', UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="Create-privilege-manage-appointment-services-201709201607-postgresql"  author="Santhosh, Pramida" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">select count(*) from privilege where privilege='Manage Appointment Services'</sqlCheck>
+        </preConditions>
+        <comment>Adding privilege to manage Services in Appointments module</comment>
+        <sql>
             INSERT INTO privilege (privilege, description, uuid) VALUES ('Manage Appointment Services', 'Able to manage Services in Appointments module', gen_random_uuid());
         </sql>
     </changeSet>
 
-    <changeSet id="Create-privilege-manage-appointment-specialities-201709201608"  author="Bailly, Rurangirwa">
+    <changeSet id="Create-privilege-manage-appointment-specialities-201709201608-mysql"  author="Bailly, Rurangirwa" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(*) from privilege where privilege='Manage Appointment Specialities'</sqlCheck>
         </preConditions>
         <comment>Adding privilege to manage Specialities in Appointments module</comment>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO privilege (privilege, description, uuid) VALUES ('Manage Appointment Specialities', 'Able to manage Specialities in Appointments module', UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="Create-privilege-manage-appointment-specialities-201709201608-postgresql"  author="Bailly, Rurangirwa" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">select count(*) from privilege where privilege='Manage Appointment Specialities'</sqlCheck>
+        </preConditions>
+        <comment>Adding privilege to manage Specialities in Appointments module</comment>
+        <sql>
             INSERT INTO privilege (privilege, description, uuid) VALUES ('Manage Appointment Specialities', 'Able to manage Specialities in Appointments module', gen_random_uuid());
         </sql>
     </changeSet>
 
-    <changeSet id="global-property-past-appointments-sql-09022021" author="Maharjun, Shireesha" runOnChange="true">
+    <changeSet id="global-property-past-appointments-sql-09022021-mysql" author="Maharjun, Shireesha" runOnChange="true" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(*) from global_property where property='bahmni.sqlGet.pastAppointments'</sqlCheck>
         </preConditions>
         <comment>Adding query to fetch past appointments for patient</comment>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO global_property (property, property_value, description, uuid)
             VALUES ('bahmni.sqlGet.pastAppointments','SELECT
      app_service.name                                                                                AS DASHBOARD_APPOINTMENTS_SERVICE_KEY,
@@ -491,12 +552,18 @@ FROM
    LEFT JOIN person_name pn ON pn.person_id = prov.person_id AND pn.voided IS FALSE
    LEFT JOIN appointment_service_type app_service_type
      ON app_service_type.appointment_service_type_id = pa.appointment_service_type_id
- WHERE p.uuid = ${patientUuid} AND start_date_time < CURRENT_DATE AND (app_service_type.voided IS FALSE OR app_service_type.voided IS NULL)
+ WHERE p.uuid = ${patientUuid} AND start_date_time &lt; CURRENT_DATE AND (app_service_type.voided IS FALSE OR app_service_type.voided IS NULL)
  ORDER BY start_date_time DESC
  LIMIT 5;'
 , 'Past appointments for patient', UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="global-property-past-appointments-sql-09022021-postgresql" author="Maharjun, Shireesha" runOnChange="true" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">select count(*) from global_property where property='bahmni.sqlGet.pastAppointments'</sqlCheck>
+        </preConditions>
+        <comment>Adding query to fetch past appointments for patient</comment>
+        <sql>
             INSERT INTO global_property (property, property_value, description, uuid)
             VALUES ('bahmni.sqlGet.pastAppointments','SELECT
      app_service.name                                                                                AS DASHBOARD_APPOINTMENTS_SERVICE_KEY,
@@ -515,7 +582,7 @@ FROM
    LEFT JOIN person_name pn ON pn.person_id = prov.person_id AND pn.voided IS FALSE
    LEFT JOIN appointment_service_type app_service_type
      ON app_service_type.appointment_service_type_id = pa.appointment_service_type_id
- WHERE p.uuid = ${patientUuid} AND start_date_time < CURRENT_DATE AND (app_service_type.voided IS FALSE OR app_service_type.voided IS NULL)
+ WHERE p.uuid = ${patientUuid} AND start_date_time &lt; CURRENT_DATE AND (app_service_type.voided IS FALSE OR app_service_type.voided IS NULL)
  ORDER BY start_date_time DESC
  LIMIT 5;'
 , 'Past appointments for patient', gen_random_uuid());
@@ -538,12 +605,12 @@ FROM
         <sqlFile path="patientPastAppointments_v3.sql"/>
     </changeSet>
 
-    <changeSet id="global-property-upcoming-appointments-sql-09022021" author="Maharjun, Shireesha" runOnChange="true">
+    <changeSet id="global-property-upcoming-appointments-sql-09022021-mysql" author="Maharjun, Shireesha" runOnChange="true" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(*) from global_property where property='bahmni.sqlGet.upComingAppointments'</sqlCheck>
         </preConditions>
         <comment>Adding query to fetch upcoming appointments for patient</comment>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO global_property (property, property_value, description, uuid)
             VALUES ('bahmni.sqlGet.upComingAppointments',
         'SELECT
@@ -569,7 +636,13 @@ WHERE p.uuid = ${patientUuid} AND
 ORDER BY start_date_time ASC;'
 , 'Upcoming appointments for patient', UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="global-property-upcoming-appointments-sql-09022021-postgresql" author="Maharjun, Shireesha" runOnChange="true" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">select count(*) from global_property where property='bahmni.sqlGet.upComingAppointments'</sqlCheck>
+        </preConditions>
+        <comment>Adding query to fetch upcoming appointments for patient</comment>
+        <sql>
             INSERT INTO global_property (property, property_value, description, uuid)
             VALUES ('bahmni.sqlGet.upComingAppointments',
         'SELECT
@@ -613,20 +686,28 @@ ORDER BY start_date_time ASC;'
         <sqlFile path="patientUpcomingAppointments_v3.sql"/>
     </changeSet>
 
-    <changeSet id="Create-Available-for-appointments-201712121212-2" author="Maharjun, Saikumar">
+    <changeSet id="Create-Available-for-appointments-201712121212-2-mysql" author="Maharjun, Saikumar" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT count(*) FROM provider_attribute_type where name="Available for appointments";
             </sqlCheck>
         </preConditions>
         <comment>Adding provider attribute type for Appointments</comment>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO provider_attribute_type (name, description, datatype, min_occurs, creator, date_created,
             retired, uuid)
             VALUES ('Available for appointments','providers will be available for appointments',
             'org.openmrs.customdatatype.datatype.BooleanDatatype', 0, 1, CURRENT_TIMESTAMP, 0, UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="Create-Available-for-appointments-201712121212-2-postgresql" author="Maharjun, Saikumar" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM provider_attribute_type where name="Available for appointments";
+            </sqlCheck>
+        </preConditions>
+        <comment>Adding provider attribute type for Appointments</comment>
+        <sql>
             INSERT INTO provider_attribute_type (name, description, datatype, min_occurs, creator, date_created,
             retired, uuid)
             VALUES ('Available for appointments','providers will be available for appointments',
@@ -736,14 +817,17 @@ ORDER BY start_date_time ASC;'
             referencedTableName="provider" referencedColumnNames="provider_id" />
     </changeSet>
 
-    <changeSet id="patient_appointment_provider_migration_201807281845" author="angshu">
+    <changeSet id="patient_appointment_provider_migration_201807281845-mysql" author="angshu" dbms="mysql">
         <comment>Migrating appointment provider to appointment_provider table</comment>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO patient_appointment_provider (patient_appointment_id, provider_id, response, date_created, creator, uuid)
             SELECT a.patient_appointment_id, a.provider_id, 'ACCEPTED', a.date_created, a.creator, UUID()
             FROM patient_appointment a WHERE a.provider_id IS NOT NULL;
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="patient_appointment_provider_migration_201807281845-postgresql" author="angshu" dbms="postgresql">
+        <comment>Migrating appointment provider to appointment_provider table</comment>
+        <sql>
             INSERT INTO patient_appointment_provider (patient_appointment_id, provider_id, response, date_created, creator, uuid)
             SELECT a.patient_appointment_id, a.provider_id, 'ACCEPTED', a.date_created, a.creator, gen_random_uuid()
             FROM patient_appointment a WHERE a.provider_id IS NOT NULL;
@@ -881,17 +965,25 @@ ORDER BY start_date_time ASC;'
             <column name="description" value="URL pattern to use for published Recurring appointment events. Default is /openmrs/ws/rest/v1/recurring-appointments?uuid={uuid}. If you change default value, please add your custom implementation for the given URL"/>
         </insert>
     </changeSet>
-    <changeSet id="default-202009011116" author="Deedee Lee">
+    <changeSet id="default-202009011116-mysql" author="Deedee Lee" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM person_attribute_type where name = 'email';
             </sqlCheck>
         </preConditions>
         <comment> Add email address in registration page </comment>
-        <sql dbms="mysql">
+        <sql>
             INSERT INTO person_attribute_type (name, description, format, searchable, creator, date_created, retired, uuid) VALUES ('email', 'Email Address', 'java.lang.String', '1', 1, CURRENT_TIMESTAMP, 0, UUID());
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="default-202009011116-postgresql" author="Deedee Lee" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM person_attribute_type where name = 'email';
+            </sqlCheck>
+        </preConditions>
+        <comment> Add email address in registration page </comment>
+        <sql>
             INSERT INTO person_attribute_type (name, description, format, searchable, creator, date_created, retired, uuid) VALUES ('email', 'Email Address', 'java.lang.String', '1', 1, CURRENT_TIMESTAMP, 0, gen_random_uuid());
         </sql>
     </changeSet>
@@ -913,7 +1005,7 @@ ORDER BY start_date_time ASC;'
         </preConditions>
         <dropColumn  tableName="patient_appointment" columnName="teleconsultation"/>
     </changeSet>
-    <changeSet id="appointments_sql_diff" author="Nathan Ruhanga">
+    <changeSet id="appointments_sql_diff-mysql" author="Nathan Ruhanga" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <columnExists tableName="appointment_speciality" columnName="voided"/>
             <columnExists tableName="appointment_service" columnName="voided"/>
@@ -924,7 +1016,7 @@ ORDER BY start_date_time ASC;'
             <columnExists tableName="patient_appointment_provider" columnName="voided"/>
         </preConditions>
         <comment>Enforcing BOOLEAN datatype for boolean fields</comment>
-        <sql dbms="mysql">
+        <sql>
             ALTER TABLE appointment_speciality MODIFY voided TINYINT(1) DEFAULT 0;
             ALTER TABLE appointment_service MODIFY voided TINYINT(1) DEFAULT 0;
             ALTER TABLE appointment_service_weekly_availability MODIFY voided TINYINT(1) DEFAULT 0;
@@ -933,7 +1025,19 @@ ORDER BY start_date_time ASC;'
             ALTER TABLE patient_appointment_audit MODIFY voided TINYINT(1) DEFAULT 0;
             ALTER TABLE patient_appointment_provider MODIFY voided TINYINT(1) DEFAULT 0;
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="appointments_sql_diff-postgresql" author="Nathan Ruhanga" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="appointment_speciality" columnName="voided"/>
+            <columnExists tableName="appointment_service" columnName="voided"/>
+            <columnExists tableName="appointment_service_weekly_availability" columnName="voided"/>
+            <columnExists tableName="appointment_service_type" columnName="voided"/>
+            <columnExists tableName="patient_appointment" columnName="voided"/>
+            <columnExists tableName="patient_appointment_audit" columnName="voided"/>
+            <columnExists tableName="patient_appointment_provider" columnName="voided"/>
+        </preConditions>
+        <comment>Enforcing BOOLEAN datatype for boolean fields</comment>
+        <sql>
             ALTER TABLE appointment_speciality ALTER COLUMN voided SET DEFAULT false;
             ALTER TABLE appointment_service ALTER COLUMN voided SET DEFAULT false;
             ALTER TABLE appointment_service_weekly_availability ALTER COLUMN voided SET DEFAULT false;
@@ -956,18 +1060,26 @@ ORDER BY start_date_time ASC;'
             </column>
         </addColumn>
     </changeSet>
-    <changeSet id="remove-not-null-constraint-202402271826" author="Kavitha, Umair">
+    <changeSet id="remove-not-null-constraint-202402271826-mysql" author="Kavitha, Umair" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="patient_appointment" />
             <columnExists tableName="patient_appointment" columnName="start_date_time" />
             <columnExists tableName="patient_appointment" columnName="end_date_time" />
         </preConditions>
         <comment>Update start and end date time of patient appointment table to be nullable</comment>
-        <sql dbms="mysql">
+        <sql>
             ALTER TABLE patient_appointment MODIFY start_date_time datetime default null;
             ALTER TABLE patient_appointment MODIFY end_date_time datetime default null;
         </sql>
-        <sql dbms="postgresql">
+    </changeSet>
+<changeSet id="remove-not-null-constraint-202402271826-postgresql" author="Kavitha, Umair" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="patient_appointment" />
+            <columnExists tableName="patient_appointment" columnName="start_date_time" />
+            <columnExists tableName="patient_appointment" columnName="end_date_time" />
+        </preConditions>
+        <comment>Update start and end date time of patient appointment table to be nullable</comment>
+        <sql>
             ALTER TABLE patient_appointment ALTER COLUMN start_date_time DROP NOT NULL;
             ALTER TABLE patient_appointment ALTER COLUMN end_date_time DROP NOT NULL;
             ALTER TABLE patient_appointment ALTER COLUMN start_date_time SET DEFAULT NULL;
