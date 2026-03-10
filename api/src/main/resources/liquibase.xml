@@ -380,9 +380,9 @@
         </sql>
     </changeSet>
 <changeSet id="create-appointment-status-change-task-20170912101533-postgresql" author="Kaustav" dbms="postgresql">
-        <preConditions>
+        <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
-                SELECT COUNT(*) FROM scheduler_task_config WHERE name = 'Mark Appointment As Missed Or Complete Task';
+                SELECT COUNT(*) FROM scheduler_task_config WHERE name = 'Mark Appointment As Missed Task';
             </sqlCheck>
         </preConditions>
         <sql>
@@ -391,14 +391,16 @@
             start_on_startup, created_by, date_created, uuid)
             VALUES
             ('Mark Appointment As Missed Task', 'Mark appointments as missed task', 'org.openmrs.module.appointments.scheduler.tasks.MarkAppointmentAsMissedTask',
-            CURRENT_DATE, 'MM/dd/yyyy HH:mm:ss', 86400, TRUE, 1, CURRENT_TIMESTAMP, gen_random_uuid());
+            CURRENT_DATE, 'MM/dd/yyyy HH:mm:ss', 86400, TRUE, 1, CURRENT_TIMESTAMP, gen_random_uuid())
+            ON CONFLICT DO NOTHING;
 
             INSERT INTO
             scheduler_task_config(name, description, schedulable_class, start_time, start_time_pattern, repeat_interval,
             start_on_startup, created_by, date_created, uuid)
             VALUES
             ('Mark Appointment As Complete Task', 'Mark appointments as complete task', 'org.openmrs.module.appointments.scheduler.tasks.MarkAppointmentAsCompleteTask',
-            CURRENT_DATE, 'MM/dd/yyyy HH:mm:ss', 86400, TRUE, 1, CURRENT_TIMESTAMP, gen_random_uuid());
+            CURRENT_DATE, 'MM/dd/yyyy HH:mm:ss', 86400, TRUE, 1, CURRENT_TIMESTAMP, gen_random_uuid())
+            ON CONFLICT DO NOTHING;
         </sql>
     </changeSet>
 
@@ -686,6 +688,22 @@ ORDER BY start_date_time ASC;'
         <sqlFile path="patientUpcomingAppointments_v3.sql"/>
     </changeSet>
 
+    <!-- Fix corrupted provider_attribute_type: wrong column (datatype vs datatype_classname) causes
+         "Bad value for type long : providers will be available for appointments" when emrapi creates Unknown Provider -->
+    <changeSet id="fix-provider-attr-type-available-for-appointments-20260310" author="nidan" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM provider_attribute_type WHERE name = 'Available for appointments';
+            </sqlCheck>
+        </preConditions>
+        <comment>Remove corrupted row so correct insert can run</comment>
+        <sql>
+            DELETE FROM provider_attribute WHERE provider_attribute_type_id IN
+                (SELECT provider_attribute_type_id FROM provider_attribute_type WHERE name = 'Available for appointments');
+            DELETE FROM provider_attribute_type WHERE name = 'Available for appointments';
+        </sql>
+    </changeSet>
+
     <changeSet id="Create-Available-for-appointments-201712121212-2-mysql" author="Maharjun, Saikumar" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
@@ -707,12 +725,17 @@ ORDER BY start_date_time ASC;'
             </sqlCheck>
         </preConditions>
         <comment>Adding provider attribute type for Appointments</comment>
-        <sql>
-            INSERT INTO provider_attribute_type (name, description, datatype, min_occurs, creator, date_created,
-            retired, uuid)
-            VALUES ('Available for appointments','providers will be available for appointments',
-            'org.openmrs.customdatatype.datatype.BooleanDatatype', 0, 1, CURRENT_TIMESTAMP, FALSE, gen_random_uuid());
-        </sql>
+        <insert tableName="provider_attribute_type">
+            <column name="name" value="Available for appointments"/>
+            <column name="description" value="providers will be available for appointments"/>
+            <column name="datatype" value="org.openmrs.customdatatype.datatype.BooleanDatatype"/>
+            <column name="min_occurs" valueNumeric="0"/>
+            <column name="max_occurs" valueNumeric="1"/>
+            <column name="creator" valueNumeric="1"/>
+            <column name="date_created" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="retired" valueBoolean="false"/>
+            <column name="uuid" valueComputed="gen_random_uuid()"/>
+        </insert>
     </changeSet>
 
     <changeSet id="201806261146" author="Suman">
@@ -984,7 +1007,9 @@ ORDER BY start_date_time ASC;'
         </preConditions>
         <comment> Add email address in registration page </comment>
         <sql>
-            INSERT INTO person_attribute_type (name, description, format, searchable, creator, date_created, retired, uuid) VALUES ('email', 'Email Address', 'java.lang.String', TRUE, 1, CURRENT_TIMESTAMP, FALSE, gen_random_uuid());
+            INSERT INTO person_attribute_type (name, description, format, searchable, creator, date_created, retired, uuid)
+            VALUES ('email', 'Email Address', 'java.lang.String', TRUE, 1, CURRENT_TIMESTAMP, FALSE, gen_random_uuid())
+            ON CONFLICT DO NOTHING;
         </sql>
     </changeSet>
     <changeSet id="create-column-tele_health_video_link-202106211857" author="Angshu">
