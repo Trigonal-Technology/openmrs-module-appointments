@@ -315,12 +315,26 @@
     <changeSet id="drop_index_on_appointment_service_type_table-201708031638" author="Santhosh, Pramida">
         <validCheckSum>any</validCheckSum>
         <preConditions onFail="MARK_RAN">
-            <tableExists tableName="appointment_service_type"/>
-        </preConditions>
-        <preConditions onFail="MARK_RAN" dbms="mysql, mariadb">
-            <sqlCheck expectedResult="1">
-                SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'appointment_service_type' AND index_name = 'service_name_dur_UNIQUE'
-            </sqlCheck>
+            <and>
+                <tableExists tableName="appointment_service_type"/>
+                <or>
+                    <not>
+                        <dbms type="mysql"/>
+                    </not>
+                    <not>
+                        <dbms type="mariadb"/>
+                    </not>
+                    <and>
+                        <or>
+                            <dbms type="mysql"/>
+                            <dbms type="mariadb"/>
+                        </or>
+                        <sqlCheck expectedResult="1">
+                            SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'appointment_service_type' AND index_name = 'service_name_dur_UNIQUE'
+                        </sqlCheck>
+                    </and>
+                </or>
+            </and>
         </preConditions>
         <sql dbms="mysql, mariadb">
             ALTER TABLE appointment_service_type DROP FOREIGN KEY fk_appointment_service_ast;
