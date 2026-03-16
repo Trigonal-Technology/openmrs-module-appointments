@@ -311,37 +311,65 @@
         </sql>
     </changeSet>
 
-    <!-- MySQL: FK fk_appointment_service_ast uses the unique index; drop FK first, then index, then recreate FK -->
+    <!-- MySQL: When index exists - drop FK, drop index, add FK. Runs only when service_name_dur_UNIQUE index exists. -->
     <changeSet id="drop_index_on_appointment_service_type_table-201708031638" author="Santhosh, Pramida">
         <validCheckSum>any</validCheckSum>
         <preConditions onFail="MARK_RAN">
             <and>
                 <tableExists tableName="appointment_service_type"/>
                 <or>
-                    <not>
-                        <dbms type="mysql"/>
-                    </not>
-                    <not>
-                        <dbms type="mariadb"/>
-                    </not>
                     <and>
-                        <or>
-                            <dbms type="mysql"/>
-                            <dbms type="mariadb"/>
-                        </or>
+                        <dbms type="mysql"/>
                         <sqlCheck expectedResult="1">
-                            SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'appointment_service_type' AND index_name = 'service_name_dur_UNIQUE'
+                            SELECT COUNT(*) FROM information_schema.statistics
+                            WHERE table_schema = DATABASE() AND table_name = 'appointment_service_type' AND index_name = 'service_name_dur_UNIQUE'
                         </sqlCheck>
                     </and>
+                    <and>
+                        <dbms type="mariadb"/>
+                        <sqlCheck expectedResult="1">
+                            SELECT COUNT(*) FROM information_schema.statistics
+                            WHERE table_schema = DATABASE() AND table_name = 'appointment_service_type' AND index_name = 'service_name_dur_UNIQUE'
+                        </sqlCheck>
+                    </and>
+                    <or>
+                        <dbms type="postgresql"/>
+                    </or>
                 </or>
             </and>
         </preConditions>
-        <sql dbms="mysql, mariadb">
-            ALTER TABLE appointment_service_type DROP FOREIGN KEY fk_appointment_service_ast;
+        <sql dbms="mysql, mariadb" splitStatements="true">
+            SET @drop_fk = IFNULL((SELECT 'ALTER TABLE appointment_service_type DROP FOREIGN KEY fk_appointment_service_ast' FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'appointment_service_type' AND CONSTRAINT_TYPE = 'FOREIGN KEY' AND CONSTRAINT_NAME = 'fk_appointment_service_ast' LIMIT 1), 'SELECT 1');
+            PREPARE stmt FROM @drop_fk;
+            EXECUTE stmt;
+            DEALLOCATE PREPARE stmt;
             ALTER TABLE appointment_service_type DROP INDEX service_name_dur_UNIQUE;
             ALTER TABLE appointment_service_type ADD CONSTRAINT fk_appointment_service_ast FOREIGN KEY (appointment_service_id) REFERENCES appointment_service(appointment_service_id);
         </sql>
         <dropUniqueConstraint tableName="appointment_service_type" constraintName="service_name_dur_UNIQUE" dbms="postgresql"/>
+    </changeSet>
+
+    <!-- MySQL: When index already dropped (e.g. partial migration) - ensure FK exists. Runs only when index is gone and FK is missing. -->
+    <changeSet id="ensure_fk_appointment_service_type_after_drop_index-201708031639" author="Santhosh, Pramida">
+        <validCheckSum>any</validCheckSum>
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="appointment_service_type"/>
+                <or><dbms type="mysql"/><dbms type="mariadb"/></or>
+                <sqlCheck expectedResult="0">
+                    SELECT COUNT(*) FROM information_schema.statistics
+                    WHERE table_schema = DATABASE() AND table_name = 'appointment_service_type' AND index_name = 'service_name_dur_UNIQUE'
+                </sqlCheck>
+                <sqlCheck expectedResult="0">
+                    SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'appointment_service_type'
+                    AND CONSTRAINT_TYPE = 'FOREIGN KEY' AND CONSTRAINT_NAME = 'fk_appointment_service_ast'
+                </sqlCheck>
+            </and>
+        </preConditions>
+        <sql dbms="mysql, mariadb">
+            ALTER TABLE appointment_service_type ADD CONSTRAINT fk_appointment_service_ast FOREIGN KEY (appointment_service_id) REFERENCES appointment_service(appointment_service_id);
+        </sql>
     </changeSet>
 
     <changeSet id="create-patient_appointment_audit_table-201708311030" author="Shruthi">
