@@ -311,12 +311,23 @@
         </sql>
     </changeSet>
 
+    <!-- MySQL: FK fk_appointment_service_ast uses the unique index; drop FK first, then index, then recreate FK -->
     <changeSet id="drop_index_on_appointment_service_type_table-201708031638" author="Santhosh, Pramida">
         <validCheckSum>any</validCheckSum>
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="appointment_service_type"/>
         </preConditions>
-        <dropUniqueConstraint tableName="appointment_service_type" constraintName="service_name_dur_UNIQUE"/>
+        <preConditions onFail="MARK_RAN" dbms="mysql, mariadb">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'appointment_service_type' AND index_name = 'service_name_dur_UNIQUE'
+            </sqlCheck>
+        </preConditions>
+        <sql dbms="mysql, mariadb">
+            ALTER TABLE appointment_service_type DROP FOREIGN KEY fk_appointment_service_ast;
+            ALTER TABLE appointment_service_type DROP INDEX service_name_dur_UNIQUE;
+            ALTER TABLE appointment_service_type ADD CONSTRAINT fk_appointment_service_ast FOREIGN KEY (appointment_service_id) REFERENCES appointment_service(appointment_service_id);
+        </sql>
+        <dropUniqueConstraint tableName="appointment_service_type" constraintName="service_name_dur_UNIQUE" dbms="postgresql"/>
     </changeSet>
 
     <changeSet id="create-patient_appointment_audit_table-201708311030" author="Shruthi">
@@ -738,7 +749,7 @@ ORDER BY start_date_time ASC;'
         </insert>
     </changeSet>
 
-    <changeSet id="201806261146" author="Suman">
+    <changeSet id="201806261146-mysql" author="Suman" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM global_property where property = 'atomfeed.publish.eventsForAppointmentService';
@@ -752,8 +763,22 @@ ORDER BY start_date_time ASC;'
             <column name="description" value="If set true, events related to appointment service changes are published"/>
         </insert>
     </changeSet>
+    <changeSet id="201806261146-postgresql" author="Suman" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM global_property where property = 'atomfeed.publish.eventsForAppointmentService';
+            </sqlCheck>
+        </preConditions>
+        <comment>Adding global property to act as switch for raising appointment service events</comment>
+        <insert tableName="global_property">
+            <column name="property" value="atomfeed.publish.eventsForAppointmentService"/>
+            <column name="property_value" value="true"/>
+            <column name="uuid" valueComputed="gen_random_uuid()"/>
+            <column name="description" value="If set true, events related to appointment service changes are published"/>
+        </insert>
+    </changeSet>
 
-    <changeSet id="201806261149" author="Suman">
+    <changeSet id="201806261149-mysql" author="Suman" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM global_property where property = 'atomfeed.event.urlPatternForAppointmentService';
@@ -767,8 +792,22 @@ ORDER BY start_date_time ASC;'
             <column name="description" value="URL pattern to use for published appointment service events. Default is /openmrs/ws/rest/v1/appointment-services/{uuid}. If you change default value, please add your custom implementation for the given URL"/>
         </insert>
     </changeSet>
+    <changeSet id="201806261149-postgresql" author="Suman" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM global_property where property = 'atomfeed.event.urlPatternForAppointmentService';
+            </sqlCheck>
+        </preConditions>
+        <comment>Adding global property to specify the URL pattern for published appointment service events</comment>
+        <insert tableName="global_property">
+            <column name="property" value="atomfeed.event.urlPatternForAppointmentService"/>
+            <column name="property_value" value="/openmrs/ws/rest/v1/appointment-services/{uuid}"/>
+            <column name="uuid" valueComputed="gen_random_uuid()"/>
+            <column name="description" value="URL pattern to use for published appointment service events. Default is /openmrs/ws/rest/v1/appointment-services/{uuid}. If you change default value, please add your custom implementation for the given URL"/>
+        </insert>
+    </changeSet>
 
-    <changeSet id="201806261612" author="Suman">
+    <changeSet id="201806261612-mysql" author="Suman" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM global_property where property = 'atomfeed.publish.eventsForAppointments';
@@ -782,8 +821,22 @@ ORDER BY start_date_time ASC;'
             <column name="description" value="If set true, events related to appointment changes are published"/>
         </insert>
     </changeSet>
+    <changeSet id="201806261612-postgresql" author="Suman" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM global_property where property = 'atomfeed.publish.eventsForAppointments';
+            </sqlCheck>
+        </preConditions>
+        <comment>Adding global property to act as switch for raising appointment events</comment>
+        <insert tableName="global_property">
+            <column name="property" value="atomfeed.publish.eventsForAppointments"/>
+            <column name="property_value" value="true"/>
+            <column name="uuid" valueComputed="gen_random_uuid()"/>
+            <column name="description" value="If set true, events related to appointment changes are published"/>
+        </insert>
+    </changeSet>
 
-    <changeSet id="201806261614" author="Suman">
+    <changeSet id="201806261614-mysql" author="Suman" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM global_property where property = 'atomfeed.event.urlPatternForAppointments';
@@ -794,6 +847,20 @@ ORDER BY start_date_time ASC;'
             <column name="property" value="atomfeed.event.urlPatternForAppointments"/>
             <column name="property_value" value="/openmrs/ws/rest/v1/appointments/{uuid}"/>
             <column name="uuid" valueComputed="UUID()"/>
+            <column name="description" value="URL pattern to use for published appointment events. Default is /openmrs/ws/rest/v1/appointments/{uuid}. If you change default value, please add your custom implementation for the given URL"/>
+        </insert>
+    </changeSet>
+    <changeSet id="201806261614-postgresql" author="Suman" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM global_property where property = 'atomfeed.event.urlPatternForAppointments';
+            </sqlCheck>
+        </preConditions>
+        <comment>Adding global property to specify the URL pattern for published appointment events</comment>
+        <insert tableName="global_property">
+            <column name="property" value="atomfeed.event.urlPatternForAppointments"/>
+            <column name="property_value" value="/openmrs/ws/rest/v1/appointments/{uuid}"/>
+            <column name="uuid" valueComputed="gen_random_uuid()"/>
             <column name="description" value="URL pattern to use for published appointment events. Default is /openmrs/ws/rest/v1/appointments/{uuid}. If you change default value, please add your custom implementation for the given URL"/>
         </insert>
     </changeSet>
@@ -856,7 +923,7 @@ ORDER BY start_date_time ASC;'
             FROM patient_appointment a WHERE a.provider_id IS NOT NULL;
         </sql>
     </changeSet>
-    <changeSet id="201808241255" author="Saikumar, Neha">
+    <changeSet id="201808241255-mysql" author="Saikumar, Neha" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM privilege WHERE privilege = 'Manage Own Appointments';
@@ -869,7 +936,20 @@ ORDER BY start_date_time ASC;'
             <column name="uuid" valueComputed="UUID()"/>
         </insert>
     </changeSet>
-    <changeSet id="reset_appointment_status_privilege_201808241255" author="Saikumar, Sowmika">
+    <changeSet id="201808241255-postgresql" author="Saikumar, Neha" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM privilege WHERE privilege = 'Manage Own Appointments';
+            </sqlCheck>
+        </preConditions>
+        <comment>Add Manage Own Appointments privilege to manage own appointments only.</comment>
+        <insert tableName="privilege">
+            <column name="privilege" value="Manage Own Appointments"/>
+            <column name="description" value="With this privilege, providers can book/edit appointments only for themselves."/>
+            <column name="uuid" valueComputed="gen_random_uuid()"/>
+        </insert>
+    </changeSet>
+    <changeSet id="reset_appointment_status_privilege_201808241255-mysql" author="Saikumar, Sowmika" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM privilege WHERE privilege = 'Reset Appointment Status';
@@ -882,7 +962,20 @@ ORDER BY start_date_time ASC;'
             <column name="uuid" valueComputed="UUID()"/>
         </insert>
     </changeSet>
-    <changeSet id="201910091141" author="Dubey">
+    <changeSet id="reset_appointment_status_privilege_201808241255-postgresql" author="Saikumar, Sowmika" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM privilege WHERE privilege = 'Reset Appointment Status';
+            </sqlCheck>
+        </preConditions>
+        <comment>Add Reset Appointment Status privilege to reset appointments from any status to scheduled.</comment>
+        <insert tableName="privilege">
+            <column name="privilege" value="Reset Appointment Status"/>
+            <column name="description" value="With this privilege, users can reset appointments from any status to scheduled."/>
+            <column name="uuid" valueComputed="gen_random_uuid()"/>
+        </insert>
+    </changeSet>
+    <changeSet id="201910091141-mysql" author="Dubey" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(*) from global_property where property='bahmni.appointments.runningOnOpenMRS'</sqlCheck>
         </preConditions>
@@ -890,6 +983,17 @@ ORDER BY start_date_time ASC;'
         <insert tableName="global_property">
             <column name="property" value="bahmni.appointments.runningOnOpenMRS"/>
             <column name="uuid" valueComputed="UUID()"/>
+            <column name="description" value="If set to yes, the appointments ui will run independent of bahmni core"/>
+        </insert>
+    </changeSet>
+    <changeSet id="201910091141-postgresql" author="Dubey" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">select count(*) from global_property where property='bahmni.appointments.runningOnOpenMRS'</sqlCheck>
+        </preConditions>
+        <comment>Adding 'bahmni.appointments.runningOnOpenMRS' global property to figure out instance type</comment>
+        <insert tableName="global_property">
+            <column name="property" value="bahmni.appointments.runningOnOpenMRS"/>
+            <column name="uuid" valueComputed="gen_random_uuid()"/>
             <column name="description" value="If set to yes, the appointments ui will run independent of bahmni core"/>
         </insert>
     </changeSet>
@@ -960,7 +1064,7 @@ ORDER BY start_date_time ASC;'
             <column name="initial_appointment_status" type="varchar(45)"/>
         </addColumn>
     </changeSet>
-    <changeSet id="202001021618" author="Sukreet">
+    <changeSet id="202001021618-mysql" author="Sukreet" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM privilege WHERE privilege = 'Appointments: Invite Providers';
@@ -973,8 +1077,21 @@ ORDER BY start_date_time ASC;'
             <column name="uuid" valueComputed="UUID()"/>
         </insert>
     </changeSet>
+    <changeSet id="202001021618-postgresql" author="Sukreet" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM privilege WHERE privilege = 'Appointments: Invite Providers';
+            </sqlCheck>
+        </preConditions>
+        <comment>Add Schedule Appointments privilege to manage own appointments only.</comment>
+        <insert tableName="privilege">
+            <column name="privilege" value="Appointments: Invite Providers"/>
+            <column name="description" value="With this privilege, providers can invite others to an appointment"/>
+            <column name="uuid" valueComputed="gen_random_uuid()"/>
+        </insert>
+    </changeSet>
 
-    <changeSet id="202001031712" author="Sowmika, Bindu">
+    <changeSet id="202001031712-mysql" author="Sowmika, Bindu" dbms="mysql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM global_property where property = 'atomfeed.event.urlPatternForRecurringAppointments';
@@ -985,6 +1102,20 @@ ORDER BY start_date_time ASC;'
             <column name="property" value="atomfeed.event.urlPatternForRecurringAppointments"/>
             <column name="property_value" value="/openmrs/ws/rest/v1/recurring-appointments?uuid={uuid}"/>
             <column name="uuid" valueComputed="UUID()"/>
+            <column name="description" value="URL pattern to use for published Recurring appointment events. Default is /openmrs/ws/rest/v1/recurring-appointments?uuid={uuid}. If you change default value, please add your custom implementation for the given URL"/>
+        </insert>
+    </changeSet>
+    <changeSet id="202001031712-postgresql" author="Sowmika, Bindu" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM global_property where property = 'atomfeed.event.urlPatternForRecurringAppointments';
+            </sqlCheck>
+        </preConditions>
+        <comment>Adding global property to specify the URL pattern for published appointment events</comment>
+        <insert tableName="global_property">
+            <column name="property" value="atomfeed.event.urlPatternForRecurringAppointments"/>
+            <column name="property_value" value="/openmrs/ws/rest/v1/recurring-appointments?uuid={uuid}"/>
+            <column name="uuid" valueComputed="gen_random_uuid()"/>
             <column name="description" value="URL pattern to use for published Recurring appointment events. Default is /openmrs/ws/rest/v1/recurring-appointments?uuid={uuid}. If you change default value, please add your custom implementation for the given URL"/>
         </insert>
     </changeSet>
