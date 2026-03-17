@@ -1347,8 +1347,8 @@ public class WeeklyRecurringAppointmentsGenerationServiceTest {
         AppointmentRecurringPattern recurringPattern = getAppointmentRecurringPattern(1, 4, null, null);
         recurringPattern.setAppointments(new HashSet<Appointment>() {{
             add(new AppointmentBuilder().withStartDateTime(addDays(date, -7)).withEndDateTime(addHours(addDays(date, -7), +1)).build());
+            add(new AppointmentBuilder().withStartDateTime(addDays(date, -2)).withEndDateTime(addHours(addDays(date, -2), +1)).build());
             add(new AppointmentBuilder().withStartDateTime(addDays(date, -1)).withEndDateTime(addHours(addDays(date, -1), +1)).build());
-            add(new AppointmentBuilder().withStartDateTime(addDays(date, +0)).withEndDateTime(addHours(addDays(date, +0), +1)).build());
             add(new AppointmentBuilder().withStartDateTime(addDays(date, +6)).withEndDateTime(addHours(addDays(date, +6), +1)).build());
         }});
 
