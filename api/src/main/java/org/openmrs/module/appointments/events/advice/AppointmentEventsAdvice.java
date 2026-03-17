@@ -23,13 +23,13 @@ import static org.openmrs.module.appointments.events.AppointmentEventType.BAHMNI
 public class AppointmentEventsAdvice implements AfterReturningAdvice, MethodBeforeAdvice {
 
 	private final Logger log = LogManager.getLogger(AppointmentEventsAdvice.class);
-	private final AppointmentEventPublisher eventPublisher;
 	private final ThreadLocal<Map<String,Integer>> threadLocal = new ThreadLocal<>();
 	private final String APPOINTMENT_ID_KEY = "appointmentId";
 	private final Set<String> adviceMethodNames = Sets.newHashSet("validateAndSave");
 
-	public AppointmentEventsAdvice() {
-		this.eventPublisher=Context.getRegisteredComponent("appointmentEventPublisher",AppointmentEventPublisher.class);
+	/** Lazy init to avoid Context.getRegisteredComponent during advisor creation (blocks context refresh). */
+	private AppointmentEventPublisher getEventPublisher() {
+		return Context.getRegisteredComponent("appointmentEventPublisher", AppointmentEventPublisher.class);
 	}
 
 	@Override
@@ -42,7 +42,7 @@ public class AppointmentEventsAdvice implements AfterReturningAdvice, MethodBefo
 
 				Appointment appointment = (Appointment) returnValue;
 				AppointmentBookingEvent appointmentEvent =new AppointmentBookingEvent(eventType,appointment);
-				eventPublisher.publishEvent(appointmentEvent);
+				getEventPublisher().publishEvent(appointmentEvent);
 				log.info("Successfully published event with uuid : " + appointmentEvent.payloadId);
 			}
 		}
